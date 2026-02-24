@@ -50,12 +50,41 @@ func main() {
 
 Each `^` marker is positioned at the column that corresponds exactly to the event's timestamp. Events share a row whenever their labels fit without overlapping; a new row is added only when necessary.
 
+### From JSON
+
+```go
+payload := []byte(`{
+    "start":   "2025-06-10T08:00:00Z",
+    "end":     "2025-06-10T19:00:00Z",
+    "options": { "width": 80, "left_margin": 2, "tick_every": "1h" },
+    "events": [
+        { "label": "Standup",     "at": "2025-06-10T09:00:00Z", "depth": 0 },
+        { "label": "Code review", "at": "2025-06-10T10:30:00Z", "depth": 0 },
+        { "label": "Deploy",      "at": "2025-06-10T14:00:00Z", "depth": 0 }
+    ]
+}`)
+
+events, start, end, opt, err := termline.ParseJSON(payload)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(termline.RenderTimeline(events, start, end, opt))
+```
+
+Timestamps must be RFC3339. `tick_every` accepts any string valid for [`time.ParseDuration`](https://pkg.go.dev/time#ParseDuration) (e.g. `"1h"`, `"30m"`, `"24h"`).
+
 ## API
 
 ### `RenderTimeline`
 
 ```go
 func RenderTimeline(events []Event, start, end time.Time, opt Options) string
+```
+
+### `ParseJSON`
+
+```go
+func ParseJSON(data []byte) (events []Event, start, end time.Time, opt Options, err error)
 ```
 
 ### `Event`
