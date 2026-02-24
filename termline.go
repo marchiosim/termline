@@ -8,9 +8,9 @@ import (
 )
 
 type Event struct {
-	Label string
-	At    time.Time
-	Depth int
+	Label string    `json:"label"`
+	At    time.Time `json:"at"`
+	Depth int       `json:"depth"`
 }
 
 type Options struct {
