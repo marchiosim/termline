@@ -29,14 +29,12 @@ func main() {
         {Label: "rollback",   At: t("09:45")},
     }
 
-    fmt.Println(termline.RenderTimeline(
-        events,
-        t("09:00"), t("10:00"),
-        termline.Options{
-            Width:     60,
-            TickEvery: 15 * time.Minute,
-        },
-    ))
+    tl := termline.Timeline{
+        Width:     60,
+        TickEvery: 15 * time.Minute,
+    }
+
+    fmt.Println(tl.Render(events, t("09:00"), t("10:00")))
 }
 ```
 
@@ -52,11 +50,14 @@ Each `^` marker is positioned at the column that corresponds exactly to the even
 
 ### From JSON
 
+Config and data are provided as separate JSON blobs:
+
 ```go
-payload := []byte(`{
-    "start":   "2025-06-10T08:00:00Z",
-    "end":     "2025-06-10T19:00:00Z",
-    "options": { "width": 80, "left_margin": 2, "tick_every": "1h" },
+config := []byte(`{ "width": 80, "left_margin": 2, "tick_every": "1h" }`)
+
+data := []byte(`{
+    "start":  "2025-06-10T08:00:00Z",
+    "end":    "2025-06-10T19:00:00Z",
     "events": [
         { "label": "Standup",     "at": "2025-06-10T09:00:00Z", "depth": 0 },
         { "label": "Code review", "at": "2025-06-10T10:30:00Z", "depth": 0 },
@@ -64,27 +65,40 @@ payload := []byte(`{
     ]
 }`)
 
-events, start, end, opt, err := termline.ParseJSON(payload)
+tl, err := termline.NewFromJSON(config)
 if err != nil {
     log.Fatal(err)
 }
-fmt.Println(termline.RenderTimeline(events, start, end, opt))
+
+out, err := tl.RenderJSON(data)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(out)
 ```
 
 Timestamps must be RFC3339. `tick_every` accepts any string valid for [`time.ParseDuration`](https://pkg.go.dev/time#ParseDuration) (e.g. `"1h"`, `"30m"`, `"24h"`).
 
 ## API
 
-### `RenderTimeline`
+### `Timeline`
+
+| Field        | Default   | Description                                    |
+|--------------|-----------|------------------------------------------------|
+| `Width`      | `100`     | Total width of the axis in characters          |
+| `LeftMargin` | `0`       | Spaces prepended to every line                 |
+| `TickEvery`  | `1h`      | Interval between tick marks on the axis        |
+| `TimeFormat` | `"15:04"` | Go time format used for labels and event times |
 
 ```go
-func RenderTimeline(events []Event, start, end time.Time, opt Options) string
+func (tl Timeline) Render(events []Event, start, end time.Time) string
+func (tl Timeline) RenderJSON(data []byte) (string, error)
 ```
 
-### `ParseJSON`
+### `NewFromJSON`
 
 ```go
-func ParseJSON(data []byte) (events []Event, start, end time.Time, opt Options, err error)
+func NewFromJSON(data []byte) (Timeline, error)
 ```
 
 ### `Event`
@@ -94,15 +108,6 @@ func ParseJSON(data []byte) (events []Event, start, end time.Time, opt Options, 
 | `Label` | Text shown next to the `^` marker                                         |
 | `At`    | Timestamp that determines the horizontal position                         |
 | `Depth` | Sort priority (lower = placed first); `0` means order by time only        |
-
-### `Options`
-
-| Field        | Default   | Description                                    |
-|--------------|-----------|------------------------------------------------|
-| `Width`      | `100`     | Total width of the axis in characters          |
-| `LeftMargin` | `0`       | Spaces prepended to every line                 |
-| `TickEvery`  | `1h`      | Interval between tick marks on the axis        |
-| `TimeFormat` | `"15:04"` | Go time format used for labels and event times |
 
 ## Examples
 
@@ -130,7 +135,7 @@ events := []termline.Event{
 ### Left margin
 
 ```go
-termline.Options{Width: 60, TickEvery: 15 * time.Minute, LeftMargin: 4}
+termline.Timeline{Width: 60, TickEvery: 15 * time.Minute, LeftMargin: 4}
 ```
 
 ```

@@ -13,22 +13,28 @@ type Event struct {
 	Depth int       `json:"depth"`
 }
 
-type Options struct {
-	Width      int
-	LeftMargin int
-	TickEvery  time.Duration
-	TimeFormat string
+type Timeline struct {
+	Width      int           `json:"width"`
+	LeftMargin int           `json:"left_margin"`
+	TickEvery  time.Duration `json:"tick_every"`
+	TimeFormat string        `json:"time_format"`
 }
 
-func RenderTimeline(events []Event, start, end time.Time, opt Options) string {
-	if opt.Width <= 0 {
-		opt.Width = 100
+// Options is an alias kept for backward compatibility.
+//
+// Deprecated: use Timeline instead.
+type Options = Timeline
+
+// Render draws the timeline as a string.
+func (tl Timeline) Render(events []Event, start, end time.Time) string {
+	if tl.Width <= 0 {
+		tl.Width = 100
 	}
-	if opt.TickEvery <= 0 {
-		opt.TickEvery = time.Hour
+	if tl.TickEvery <= 0 {
+		tl.TickEvery = time.Hour
 	}
-	if opt.TimeFormat == "" {
-		opt.TimeFormat = "15:04"
+	if tl.TimeFormat == "" {
+		tl.TimeFormat = "15:04"
 	}
 	sort.Slice(events, func(i, j int) bool {
 		if events[i].Depth != events[j].Depth {
@@ -47,29 +53,29 @@ func RenderTimeline(events []Event, start, end time.Time, opt Options) string {
 			return 0
 		}
 		if t.After(end) {
-			return opt.Width
+			return tl.Width
 		}
 		ratio := float64(t.Sub(start)) / float64(span)
-		return int(math.Round(ratio * float64(opt.Width)))
+		return int(math.Round(ratio * float64(tl.Width)))
 	}
 
-	margin := strings.Repeat(" ", opt.LeftMargin)
+	margin := strings.Repeat(" ", tl.LeftMargin)
 	var b strings.Builder
 
 	// ---- Tick labels
-	tickLine := make([]rune, opt.Width+1)
+	tickLine := make([]rune, tl.Width+1)
 	for i := range tickLine {
 		tickLine[i] = ' '
 	}
 
-	firstTick := start.Truncate(opt.TickEvery)
+	firstTick := start.Truncate(tl.TickEvery)
 	if firstTick.Before(start) {
-		firstTick = firstTick.Add(opt.TickEvery)
+		firstTick = firstTick.Add(tl.TickEvery)
 	}
 
-	for t := firstTick; !t.After(end); t = t.Add(opt.TickEvery) {
+	for t := firstTick; !t.After(end); t = t.Add(tl.TickEvery) {
 		x := toX(t)
-		lbl := t.Format(opt.TimeFormat)
+		lbl := t.Format(tl.TimeFormat)
 		pos := x - len(lbl)/2
 		if pos < 0 {
 			pos = 0
@@ -87,14 +93,14 @@ func RenderTimeline(events []Event, start, end time.Time, opt Options) string {
 	b.WriteString("\n")
 
 	// ---- Axis
-	axis := make([]rune, opt.Width+1)
+	axis := make([]rune, tl.Width+1)
 	for i := range axis {
 		axis[i] = '-'
 	}
 	axis[0] = '|'
-	axis[opt.Width] = '|'
+	axis[tl.Width] = '|'
 
-	for t := firstTick; !t.After(end); t = t.Add(opt.TickEvery) {
+	for t := firstTick; !t.After(end); t = t.Add(tl.TickEvery) {
 		axis[toX(t)] = '|'
 	}
 
@@ -112,7 +118,7 @@ func RenderTimeline(events []Event, start, end time.Time, opt Options) string {
 
 	for _, e := range events {
 		x := toX(e.At)
-		w := len("^ " + e.Label + " (" + e.At.Format(opt.TimeFormat) + ")")
+		w := len("^ " + e.Label + " (" + e.At.Format(tl.TimeFormat) + ")")
 
 		target := -1
 		for r, row := range rows {
@@ -148,7 +154,7 @@ func RenderTimeline(events []Event, start, end time.Time, opt Options) string {
 			b.WriteString("^ ")
 			b.WriteString(s.e.Label)
 			b.WriteString(" (")
-			b.WriteString(s.e.At.Format(opt.TimeFormat))
+			b.WriteString(s.e.At.Format(tl.TimeFormat))
 			b.WriteString(")")
 			pos = s.x + s.w
 		}
@@ -156,4 +162,11 @@ func RenderTimeline(events []Event, start, end time.Time, opt Options) string {
 	}
 
 	return b.String()
+}
+
+// RenderTimeline renders a timeline as a string.
+//
+// Deprecated: use Timeline.Render instead.
+func RenderTimeline(events []Event, start, end time.Time, opt Options) string {
+	return opt.Render(events, start, end)
 }
